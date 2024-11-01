@@ -1,0 +1,27 @@
+TD3 modified version with AWR-CM loss
+
+seems the only difference in actor_loss between AWR and VPG is that AWR use exp(A/beta) but VPG use A
+Should combine consistency loss with AWR, i.e., the more Advantage of the action, the more 
+
+Yes, you’re correct! The primary difference between Actor-Wise Reinforcement (AWR) and Vanilla Policy Gradient (VPG) methods lies in how they compute the actor loss based on the advantage function \( A \).
+
+1. **Vanilla Policy Gradient (VPG)**: The loss is directly proportional to the advantage function:
+   \[
+   \text{Loss}_{\text{VPG}} = -\mathbb{E}[A(s, a) \log \pi(a | s)]
+   \]
+   Here, \( A(s, a) \) is the advantage of taking action \( a \) in state \( s \).
+
+2. **Actor-Wise Reinforcement (AWR)**: Instead of using the advantage directly, AWR uses an exponential transformation to adjust the influence of the advantage:
+   \[
+   \text{Loss}_{\text{AWR}} = -\mathbb{E}[\exp(A(s, a)/\beta) \log \pi(a | s)]
+   \]
+   In this case, \( \beta \) acts as a temperature parameter that can control the variance of the distribution. The exponential term helps emphasize actions with higher advantages more strongly compared to the linear approach in VPG.
+
+This difference can lead to distinct learning dynamics, as AWR can stabilize updates by tempering the influence of the advantage based on the chosen \( \beta \). Would you like to discuss the implications of this difference further?
+
+weight = torch.tensor(np.minimum(np.exp(adv[sample_idx] / beta), max_weight)).float().reshape(-1, 1)
+cur_policy = self.model.actor(torch.FloatTensor(s_batch[sample_idx]))
+
+if self.continuous_agent:
+    probs = -cur_policy.log_probs(torch.tensor(action_batch[sample_idx]).float())
+    actor_loss = probs * weight
