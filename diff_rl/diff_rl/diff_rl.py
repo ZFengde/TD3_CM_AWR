@@ -146,6 +146,7 @@ class TD3(OffPolicyAlgorithm):
             # Optimize the critics
             self.critic.optimizer.zero_grad()
             critic_loss.backward()
+            th.nn.utils.clip_grad_norm_(self.critic.parameters(), 0.5)
             self.critic.optimizer.step()
 
             # Delayed policy updates
