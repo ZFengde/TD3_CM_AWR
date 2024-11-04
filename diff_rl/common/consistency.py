@@ -224,4 +224,13 @@ class Consistency_Model:
         value = q_value.mean(1) # should be batch * 1
         q_selected_action = critic.q1_forward(state, action)
         advantage = q_selected_action - value
-        return advantage
+        weight = th.min(th.exp(advantage / 0.05), th.tensor(20.0)).float().reshape(-1, 1).detach()
+        return advantage, weight
+    
+    def z_score(self, state, action, model):
+        state_rpt = th.repeat_interleave(state.unsqueeze(1), repeats=50, dim=1)
+        scaled_actions = self.batch_multi_sample(model=model, state=state_rpt)
+        cm_mean = scaled_actions.mean(dim=1)
+        z_scores = (-(action - cm_mean)**2/2).mean(dim=1).reshape(-1, 1)
+
+        return z_scores

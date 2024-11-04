@@ -128,10 +128,13 @@ class TD3(OffPolicyAlgorithm):
                 noise = noise.clamp(-self.target_noise_clip, self.target_noise_clip) # here is the [-1, 1] action
 
                 next_actions = (self.consistency_model.sample(model=self.actor_target, state=replay_data.next_observations) + noise).clamp(-1, 1)
-
+                next_z_scores = self.consistency_model.z_score(state=replay_data.next_observations, 
+                                                               action=next_actions, 
+                                                               model=self.actor)
                 # Compute the next Q-values: min over all critics targets
                 next_q_values = th.cat(self.critic_target(replay_data.next_observations, next_actions), dim=1)
                 next_q_values, _ = th.min(next_q_values, dim=1, keepdim=True)
+                next_q_values = next_q_values - 0.15 * next_z_scores
 
                 target_q_values = replay_data.rewards + (1 - replay_data.dones) * self.gamma * next_q_values
 
@@ -161,10 +164,10 @@ class TD3(OffPolicyAlgorithm):
                                               )
                 
                 bc_losses = compute_bc_losses() # TODO, check here whether should be sampled_action or replay_data.action
-                advantage = self.consistency_model.awr_weight(self.critic, self.actor, replay_data.observations, sampled_action)
-                weight = th.min(th.exp(advantage / 0.05), th.tensor(20.0)).float().reshape(-1, 1).detach()
+                advantage, weight = self.consistency_model.awr_weight(self.critic, self.actor, replay_data.observations, sampled_action)
+                z_scores = self.consistency_model.z_score(state=replay_data.observations, action=sampled_action, model=self.actor)
                 
-                actor_loss = (weight * bc_losses["consistency_loss"].unsqueeze(1) - self.critic.q1_forward(replay_data.observations, sampled_action)).mean()
+                actor_loss = (weight * bc_losses["consistency_loss"].unsqueeze(1) - self.critic.q1_forward(replay_data.observations, sampled_action) - 0.15 * z_scores).mean()
                 actor_losses.append(actor_loss.item())
 
                 # Optimize the actor

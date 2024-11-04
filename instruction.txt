@@ -25,3 +25,5 @@ cur_policy = self.model.actor(torch.FloatTensor(s_batch[sample_idx]))
 if self.continuous_agent:
     probs = -cur_policy.log_probs(torch.tensor(action_batch[sample_idx]).float())
     actor_loss = probs * weight
+
+th.nn.utils.clip_grad_norm_(self.critic.parameters(), 0.5) can effectively resolve crahsing issue.
